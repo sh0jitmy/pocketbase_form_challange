@@ -89,7 +89,7 @@ func generateFormHTML(schema map[string]interface{}) string {
 	<body class="bg-gray-100 p-8">
 		<div class="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-lg">
 			<h1 class="text-2xl font-bold mb-6">データ送信フォーム</h1>
-			<form method="POST" action="/submit" class="space-y-4">
+			<form id="dataForm" method="POST" action="/submit" class="space-y-4">
 	`)
 
 	fields, ok := schema["fields"].([]interface{})
@@ -132,11 +132,50 @@ func generateFormHTML(schema map[string]interface{}) string {
 	}
 
 	sb.WriteString(`
-				<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">送信</button>
+				<button type="button" onclick="submitForm()" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">送信</button>
+
+				<div id="result" class="hidden mt-6 p-4 border rounded-md"></div>
 			</form>
 		</div>
+
+		<script>
+			async function submitForm() {
+				const form = document.getElementById('dataForm');
+				console.log(form);
+				const formData = new FormData(form);
+				const payload = {};
+
+				formData.forEach((value, key) => {
+					payload[key] = value === "on" ? true : value;
+				});
+
+				try {
+					const response = await fetch("` + pbURL + `/api/collections/` + targetCollection + `/records", {
+						method: "POST",
+						headers: { "Content-Type": "application/json",
+							"Authentication": "`+ pbToken +`" ,
+						},
+						body: JSON.stringify(payload)
+					});
+
+					const resultDiv = document.getElementById('result');
+					resultDiv.classList.remove('hidden');
+
+					if (response.ok) {
+						const data = await response.json();
+						resultDiv.innerHTML = '<div class="text-green-600">✅ データ登録に成功しました </div>';
+					} else {
+						const error = await response.json();
+						resultDiv.innerHTML = '<div class="text-red-600">❌ エラーが発生しました: ' + error.message + '</div>';
+					}
+				} catch (error) {
+					alert("通信エラー: " + error.message);
+				}
+			}
+		</script>
 	</body>
 	</html>`)
+
 
 	return sb.String()
 }
